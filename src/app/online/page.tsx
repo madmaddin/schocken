@@ -7,6 +7,7 @@ import { useOnlineStore } from '@/store/onlineStore';
 import { STANDARD_RULES } from '@/game/rules/presets';
 import { getAIPlayerName } from '@/game/ai/AIPlayer';
 import { generateRoomCode, generatePlayerId } from '@/lib/roomCode';
+import { RulesConfigPanel } from '@/components/game/RulesConfig';
 import type { AIPlayerConfig, AISkillLevel, AIRiskProfile, GameRules } from '@/game/rules/types';
 
 const DEFAULT_AI_CONFIG: AIPlayerConfig = { skillLevel: 'fortgeschritten', riskProfile: 'ausgewogen' };
@@ -31,7 +32,8 @@ export default function OnlinePage() {
   const [aiCount, setAiCount] = useState(0);
   const [aiConfigs, setAiConfigs] = useState<AIPlayerConfig[]>([]);
   const [showAIConfig, setShowAIConfig] = useState(false);
-  const [rules] = useState<GameRules>(STANDARD_RULES);
+  const [rules, setRules] = useState<GameRules>(STANDARD_RULES);
+  const [showRulesConfig, setShowRulesConfig] = useState(false);
 
   // ── Raum beitreten ──
   const [joinCode, setJoinCode] = useState('');
@@ -160,6 +162,22 @@ export default function OnlinePage() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Regelwerk */}
+          <div className="border-t border-gray-700 pt-3">
+            <button
+              onClick={() => setShowRulesConfig(!showRulesConfig)}
+              className="flex items-center justify-between w-full text-sm text-gray-300 hover:text-white transition-colors"
+            >
+              <span>Regelwerk anpassen</span>
+              <span className="text-xs text-gray-500">{showRulesConfig ? '▲' : '▼'}</span>
+            </button>
+            {showRulesConfig && (
+              <div className="mt-4">
+                <RulesConfigPanel rules={rules} onChange={(patch) => setRules(prev => ({ ...prev, ...patch }))} />
               </div>
             )}
           </div>

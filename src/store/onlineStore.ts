@@ -41,6 +41,7 @@ type GameAction =
 interface OnlineStore {
   roomCode: string | null;
   roomName: string;
+  roomRules: GameRules | null;
   isHost: boolean;
   myPlayerId: string;
   myPlayerName: string;
@@ -74,6 +75,7 @@ let _channel: RealtimeChannel | null = null;
 export const useOnlineStore = create<OnlineStore>((set, get) => ({
   roomCode: null,
   roomName: '',
+  roomRules: null,
   isHost: false,
   myPlayerId: '',
   myPlayerName: '',
@@ -88,7 +90,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
 
   createRoom: async (config) => {
     const { roomCode, roomName, hostId, hostName, rules, aiPlayers } = config;
-    set({ status: 'connecting', roomCode, roomName, isHost: true, myPlayerId: hostId, myPlayerName: hostName, error: null, _rules: rules, _aiPlayerConfigs: aiPlayers });
+    set({ status: 'connecting', roomCode, roomName, roomRules: rules, isHost: true, myPlayerId: hostId, myPlayerName: hostName, error: null, _rules: rules, _aiPlayerConfigs: aiPlayers });
 
     const channel = supabase.channel(`room:${roomCode}`, {
       config: { broadcast: { self: true }, presence: { key: hostId } },
@@ -132,8 +134,8 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
           }));
           set({ status: 'lobby', lobbyPlayers: [{ id: hostId, name: hostName, isHost: true }, ...aiLobbyEntries] });
 
-          // Lobby-Info broadcasten damit Joiner sofort den Raumnamen sehen
-          channel.send({ type: 'broadcast', event: 'room_info', payload: { roomName, hostName } });
+          // Lobby-Info broadcasten damit Joiner sofort den Raumnamen und Regeln sehen
+          channel.send({ type: 'broadcast', event: 'room_info', payload: { roomName, hostName, rules } });
 
           resolve();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -150,7 +152,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
 
     function broadcastLobbyInfo() {
       if (!_channel) return;
-      _channel.send({ type: 'broadcast', event: 'room_info', payload: { roomName, hostName } });
+      _channel.send({ type: 'broadcast', event: 'room_info', payload: { roomName, hostName, rules } });
     }
   },
 
@@ -170,9 +172,9 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
       set({ gameState: state, status: state.phase === 'playing' || state.phase === 'round_result' || state.phase === 'half_time' || state.phase === 'finished' ? 'playing' : 'lobby' });
     });
 
-    // Raum-Info (Name etc.)
+    // Raum-Info (Name + Regeln)
     channel.on('broadcast', { event: 'room_info' }, ({ payload }) => {
-      set({ roomName: payload.roomName ?? '' });
+      set({ roomName: payload.roomName ?? '', roomRules: payload.rules ?? null });
     });
 
     // Spiel gestartet
@@ -251,7 +253,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
       _channel = null;
     }
     _engine = null;
-    set({ status: 'idle', roomCode: null, roomName: '', gameState: null, lobbyPlayers: [], error: null });
+    set({ status: 'idle', roomCode: null, roomName: '', roomRules: null, gameState: null, lobbyPlayers: [], error: null });
   },
 
   // ── Spielaktionen (werden entweder direkt ausgeführt oder via Kanal gesendet) ──

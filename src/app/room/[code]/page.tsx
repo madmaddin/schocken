@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useOnlineStore } from '@/store/onlineStore';
 import { GameBoard } from '@/components/game/GameBoard';
+import { RulesSummaryPopover } from '@/components/game/RulesConfig';
 import { generatePlayerId } from '@/lib/roomCode';
 
 export default function RoomPage() {
@@ -16,6 +17,21 @@ export default function RoomPage() {
   const [joinName, setJoinName] = useState('');
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showRulesPopover, setShowRulesPopover] = useState(false);
+
+  // Regeln-Popover einmalig zeigen wenn Regeln bekannt sind
+  useEffect(() => {
+    if (!store.roomRules) return;
+    const ackKey = `rulesAck:${code}`;
+    if (!sessionStorage.getItem(ackKey)) {
+      setShowRulesPopover(true);
+    }
+  }, [store.roomRules, code]);
+
+  const dismissRulesPopover = () => {
+    sessionStorage.setItem(`rulesAck:${code}`, '1');
+    setShowRulesPopover(false);
+  };
 
   // Beim Laden: Session prüfen
   useEffect(() => {
@@ -107,6 +123,14 @@ export default function RoomPage() {
   // ── Lobby ────────────────────────────────────────────────────────────────
   if (store.status === 'lobby') {
     return (
+      <>
+      {showRulesPopover && store.roomRules && (
+        <RulesSummaryPopover
+          rules={store.roomRules}
+          roomName={store.roomName || 'Schocken'}
+          onDismiss={dismissRulesPopover}
+        />
+      )}
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-5">
 
@@ -177,6 +201,7 @@ export default function RoomPage() {
           </p>
         </div>
       </div>
+      </>
     );
   }
 
