@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useGameStore } from '@/store/gameStore';
 import { STANDARD_RULES } from '@/game/rules/presets';
 import { getAIPlayerName } from '@/game/ai/AIPlayer';
@@ -69,6 +70,12 @@ export function GameSetup() {
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold text-amber-400">🎲 Schocken</h1>
           <p className="text-gray-400">Trainingsspiel — Du gegen die KI</p>
+          <Link
+            href="/online"
+            className="inline-block mt-1 text-sm text-amber-400 hover:text-amber-300 underline underline-offset-2 transition-colors"
+          >
+            Mit Freunden spielen →
+          </Link>
         </div>
 
         {/* Nickname */}
