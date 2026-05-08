@@ -6,6 +6,7 @@ import { useGameStore } from '@/store/gameStore';
 import { STANDARD_RULES } from '@/game/rules/presets';
 import { getAIPlayerName } from '@/game/ai/AIPlayer';
 import { RulesConfigPanel } from '@/components/game/RulesConfig';
+import { AvatarPicker, DEFAULT_HUMAN_AVATAR } from '@/components/game/AvatarPicker';
 import type { GameRules } from '@/game/rules/types';
 import type { AIPlayerConfig, AISkillLevel, AIRiskProfile } from '@/game/rules/types';
 
@@ -25,6 +26,7 @@ const RISK_LABELS: Record<AIRiskProfile, string> = {
 
 export function GameSetup() {
   const [nickname, setNickname] = useState('');
+  const [avatar, setAvatar] = useState(DEFAULT_HUMAN_AVATAR);
   const [aiCount, setAiCount] = useState(3);
   const [rules, setRules] = useState<GameRules>(STANDARD_RULES);
   const [aiConfigs, setAiConfigs] = useState<AIPlayerConfig[]>(
@@ -68,17 +70,28 @@ export function GameSetup() {
           </Link>
         </div>
 
-        {/* Nickname */}
-        <div className="bg-gray-800 rounded-2xl p-5 space-y-3">
-          <label className="block text-sm font-medium text-gray-300">Dein Nickname</label>
-          <input
-            type="text"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            placeholder="z. B. Stammtisch-Max"
-            maxLength={20}
-            className="w-full bg-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
-          />
+        {/* Nickname + Avatar */}
+        <div className="bg-gray-800 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gray-700 flex items-center justify-center text-3xl shrink-0">
+              {avatar}
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Dein Nickname</label>
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="z. B. Stammtisch-Max"
+                maxLength={20}
+                className="w-full bg-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-gray-400">Dein Avatar</p>
+            <AvatarPicker value={avatar} onChange={setAvatar} />
+          </div>
         </div>
 
         {/* KI-Gegner + Konfiguration */}
@@ -132,7 +145,7 @@ export function GameSetup() {
 
         {/* Start */}
         <button
-          onClick={() => startTrainingGame(nickname.trim(), aiCount, rules, aiConfigs)}
+          onClick={() => startTrainingGame(nickname.trim(), avatar, aiCount, rules, aiConfigs)}
           disabled={!canStart}
           className="w-full py-4 rounded-2xl font-bold text-lg transition-all
             bg-amber-500 hover:bg-amber-400 text-gray-900

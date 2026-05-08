@@ -58,7 +58,7 @@ export function PlayerRow({
       {/* Name + Typ */}
       <div className="w-28 min-w-28 shrink-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-base">{player.type === 'ai' ? '🤖' : '🧑'}</span>
+          <span className="text-base">{player.avatar}</span>
           <span className={`text-sm font-medium truncate ${isCurrentPlayer ? 'text-amber-300' : 'text-gray-200'}`}>
             {player.name}
           </span>

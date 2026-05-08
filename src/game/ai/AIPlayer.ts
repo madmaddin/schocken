@@ -250,3 +250,8 @@ export function getAIPlayerName(index: number): string {
   ];
   return names[index % names.length];
 }
+
+export function getAIPlayerAvatar(index: number): string {
+  const avatars = ['🧔', '🍺', '🪑', '🎲', '🥂', '🌾', '⚡'];
+  return avatars[index % avatars.length];
+}

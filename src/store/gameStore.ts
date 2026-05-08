@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { GameEngine } from '@/game/engine/GameEngine';
 import { STANDARD_RULES } from '@/game/rules/presets';
-import { getAIPlayerName } from '@/game/ai/AIPlayer';
+import { getAIPlayerName, getAIPlayerAvatar } from '@/game/ai/AIPlayer';
 import type { GameState, GameRules, Player, AIPlayerConfig } from '@/game/rules/types';
 
 interface GameStore {
@@ -12,7 +12,7 @@ interface GameStore {
   isAIThinking: boolean;
   fastMode: boolean;
 
-  startTrainingGame: (humanName: string, aiCount: number, rules: GameRules, aiConfigs: AIPlayerConfig[]) => void;
+  startTrainingGame: (humanName: string, humanAvatar: string, aiCount: number, rules: GameRules, aiConfigs: AIPlayerConfig[]) => void;
   // Menschlicher Spieler würfelt (oder würfelt nochmal)
   roll: () => void;
   toggleHold: (dieIndex: 0 | 1 | 2) => void;
@@ -31,12 +31,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isAIThinking: false,
   fastMode: false,
 
-  startTrainingGame: (humanName, aiCount, rules, aiConfigs) => {
+  startTrainingGame: (humanName, humanAvatar, aiCount, rules, aiConfigs) => {
     const defaultConfig: AIPlayerConfig = { skillLevel: 'fortgeschritten', riskProfile: 'ausgewogen' };
     const players: Player[] = [
       {
         id: 'human',
         name: humanName,
+        avatar: humanAvatar,
         type: 'human',
         covers: 0,
         isEliminated: false,
@@ -45,6 +46,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ...Array.from({ length: aiCount }, (_, i) => ({
         id: `ai-${i}`,
         name: getAIPlayerName(i),
+        avatar: getAIPlayerAvatar(i),
         type: 'ai' as const,
         aiConfig: aiConfigs[i] ?? defaultConfig,
         covers: 0,

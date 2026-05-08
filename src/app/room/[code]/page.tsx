@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useOnlineStore } from '@/store/onlineStore';
 import { GameBoard } from '@/components/game/GameBoard';
 import { RulesSummaryPopover } from '@/components/game/RulesConfig';
+import { AvatarPicker, DEFAULT_HUMAN_AVATAR } from '@/components/game/AvatarPicker';
 import { generatePlayerId } from '@/lib/roomCode';
 
 export default function RoomPage() {
@@ -15,6 +16,7 @@ export default function RoomPage() {
 
   const store = useOnlineStore();
   const [joinName, setJoinName] = useState('');
+  const [joinAvatar, setJoinAvatar] = useState(DEFAULT_HUMAN_AVATAR);
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showRulesPopover, setShowRulesPopover] = useState(false);
@@ -39,13 +41,13 @@ export default function RoomPage() {
 
     const raw = sessionStorage.getItem(`room:${code}`);
     if (raw) {
-      const session = JSON.parse(raw) as { isHost: boolean; playerId: string; playerName: string };
+      const session = JSON.parse(raw) as { isHost: boolean; playerId: string; playerName: string; avatar?: string };
       if (session.isHost) {
         // Host kehrt zurück → Raum neu aufbauen (State verloren nach Refresh)
         router.push('/online');
       } else {
         // Gast kehrt zurück → neu beitreten
-        store.joinRoom(code, session.playerId, session.playerName);
+        store.joinRoom(code, session.playerId, session.playerName, session.avatar || DEFAULT_HUMAN_AVATAR);
       }
     } else {
       // Neue Person öffnet Link → Beitrittsformular
@@ -57,8 +59,8 @@ export default function RoomPage() {
   const handleJoin = async () => {
     if (!joinName.trim()) return;
     const playerId = generatePlayerId();
-    sessionStorage.setItem(`room:${code}`, JSON.stringify({ isHost: false, playerId, playerName: joinName.trim() }));
-    await store.joinRoom(code, playerId, joinName.trim());
+    sessionStorage.setItem(`room:${code}`, JSON.stringify({ isHost: false, playerId, playerName: joinName.trim(), avatar: joinAvatar }));
+    await store.joinRoom(code, playerId, joinName.trim(), joinAvatar);
     setShowJoinForm(false);
   };
 
@@ -81,12 +83,21 @@ export default function RoomPage() {
             <p className="font-mono text-lg text-amber-400 tracking-widest">{code}</p>
           </div>
           <div className="bg-gray-800 rounded-2xl p-5 space-y-4">
-            <input
-              type="text" value={joinName} onChange={e => setJoinName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleJoin()}
-              placeholder="Dein Name" maxLength={20} autoFocus
-              className="w-full bg-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
-            />
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gray-700 flex items-center justify-center text-2xl shrink-0">
+                {joinAvatar}
+              </div>
+              <input
+                type="text" value={joinName} onChange={e => setJoinName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleJoin()}
+                placeholder="Dein Name" maxLength={20} autoFocus
+                className="flex-1 bg-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-gray-400">Dein Avatar</p>
+              <AvatarPicker value={joinAvatar} onChange={setJoinAvatar} />
+            </div>
             <button
               onClick={handleJoin}
               disabled={!joinName.trim() || store.status === 'connecting'}
@@ -150,7 +161,7 @@ export default function RoomPage() {
             ) : (
               store.lobbyPlayers.map(p => (
                 <div key={p.id} className="flex items-center gap-2 text-sm">
-                  <span>{p.id.startsWith('ai-') ? '🤖' : '🧑'}</span>
+                  <span className="text-base">{p.avatar}</span>
                   <span className="text-white">{p.name}</span>
                   {p.isHost && <span className="text-xs text-amber-400 ml-auto">Host</span>}
                   {p.id === store.myPlayerId && !p.isHost && <span className="text-xs text-gray-500 ml-auto">Du</span>}

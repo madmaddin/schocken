@@ -167,7 +167,7 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Pausiert (0 Deckel)</p>
               {players.filter(p => p.isOut).map(p => (
                 <div key={p.id} className="flex items-center gap-2 text-sm text-gray-500">
-                  <span>{p.type === 'ai' ? '🤖' : '🧑'}</span>
+                  <span>{p.avatar}</span>
                   <span>{p.name}</span>
                 </div>
               ))}

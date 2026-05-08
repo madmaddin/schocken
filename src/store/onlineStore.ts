@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { GameEngine } from '@/game/engine/GameEngine';
-import { getAIPlayerName } from '@/game/ai/AIPlayer';
+import { getAIPlayerName, getAIPlayerAvatar } from '@/game/ai/AIPlayer';
 import type { GameState, GameRules, Player, AIPlayerConfig } from '@/game/rules/types';
 
 // ─── Öffentliche Typen ────────────────────────────────────────────────────────
@@ -12,6 +12,7 @@ import type { GameState, GameRules, Player, AIPlayerConfig } from '@/game/rules/
 export interface LobbyPlayer {
   id: string;
   name: string;
+  avatar: string;
   isHost: boolean;
 }
 
@@ -20,6 +21,7 @@ export interface CreateRoomConfig {
   roomName: string;
   hostId: string;
   hostName: string;
+  hostAvatar: string;
   rules: GameRules;
   aiPlayers: AIPlayerConfig[];
 }
@@ -45,6 +47,7 @@ interface OnlineStore {
   isHost: boolean;
   myPlayerId: string;
   myPlayerName: string;
+  myPlayerAvatar: string;
   status: RoomStatus;
   lobbyPlayers: LobbyPlayer[];
   gameState: GameState | null;
@@ -53,7 +56,7 @@ interface OnlineStore {
   _aiPlayerConfigs: AIPlayerConfig[];
 
   createRoom: (config: CreateRoomConfig) => Promise<void>;
-  joinRoom: (code: string, playerId: string, playerName: string) => Promise<void>;
+  joinRoom: (code: string, playerId: string, playerName: string, playerAvatar: string) => Promise<void>;
   startGame: () => void;
   leaveRoom: () => void;
 
@@ -79,6 +82,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
   isHost: false,
   myPlayerId: '',
   myPlayerName: '',
+  myPlayerAvatar: '',
   status: 'idle',
   lobbyPlayers: [],
   gameState: null,
@@ -89,8 +93,8 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
   // ── Raum erstellen (Host) ─────────────────────────────────────────────────
 
   createRoom: async (config) => {
-    const { roomCode, roomName, hostId, hostName, rules, aiPlayers } = config;
-    set({ status: 'connecting', roomCode, roomName, roomRules: rules, isHost: true, myPlayerId: hostId, myPlayerName: hostName, error: null, _rules: rules, _aiPlayerConfigs: aiPlayers });
+    const { roomCode, roomName, hostId, hostName, hostAvatar, rules, aiPlayers } = config;
+    set({ status: 'connecting', roomCode, roomName, roomRules: rules, isHost: true, myPlayerId: hostId, myPlayerName: hostName, myPlayerAvatar: hostAvatar, error: null, _rules: rules, _aiPlayerConfigs: aiPlayers });
 
     const channel = supabase.channel(`room:${roomCode}`, {
       config: { broadcast: { self: true }, presence: { key: hostId } },
@@ -124,15 +128,16 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
     await new Promise<void>((resolve, reject) => {
       channel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({ id: hostId, name: hostName, isHost: true });
+          await channel.track({ id: hostId, name: hostName, avatar: hostAvatar, isHost: true });
 
           // AI-Spieler als Platzhalter in die Lobby-Liste eintragen
           const aiLobbyEntries: LobbyPlayer[] = aiPlayers.map((_, i) => ({
             id: `ai-${i}`,
             name: getAIPlayerName(i),
+            avatar: getAIPlayerAvatar(i),
             isHost: false,
           }));
-          set({ status: 'lobby', lobbyPlayers: [{ id: hostId, name: hostName, isHost: true }, ...aiLobbyEntries] });
+          set({ status: 'lobby', lobbyPlayers: [{ id: hostId, name: hostName, avatar: hostAvatar, isHost: true }, ...aiLobbyEntries] });
 
           // Lobby-Info broadcasten damit Joiner sofort den Raumnamen und Regeln sehen
           channel.send({ type: 'broadcast', event: 'room_info', payload: { roomName, hostName, rules } });
@@ -158,8 +163,8 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
 
   // ── Raum beitreten (Gast) ─────────────────────────────────────────────────
 
-  joinRoom: async (code, playerId, playerName) => {
-    set({ status: 'connecting', roomCode: code, isHost: false, myPlayerId: playerId, myPlayerName: playerName, error: null });
+  joinRoom: async (code, playerId, playerName, playerAvatar) => {
+    set({ status: 'connecting', roomCode: code, isHost: false, myPlayerId: playerId, myPlayerName: playerName, myPlayerAvatar: playerAvatar, error: null });
 
     const channel = supabase.channel(`room:${code}`, {
       config: { broadcast: { self: false }, presence: { key: playerId } },
@@ -189,7 +194,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
     await new Promise<void>((resolve, reject) => {
       channel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await channel.track({ id: playerId, name: playerName, isHost: false });
+          await channel.track({ id: playerId, name: playerName, avatar: playerAvatar, isHost: false });
           set({ status: 'lobby' });
           resolve();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -211,6 +216,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
       .map(p => ({
         id: p.id,
         name: p.name,
+        avatar: p.avatar || '😎',
         type: 'human' as const,
         covers: 0,
         isEliminated: false,
@@ -222,6 +228,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
     const aiPlayers: Player[] = aiConfigs.map((cfg, i) => ({
       id: `ai-${i}`,
       name: getAIPlayerName(i),
+      avatar: getAIPlayerAvatar(i),
       type: 'ai' as const,
       aiConfig: cfg,
       covers: 0,
@@ -253,7 +260,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
       _channel = null;
     }
     _engine = null;
-    set({ status: 'idle', roomCode: null, roomName: '', roomRules: null, gameState: null, lobbyPlayers: [], error: null });
+    set({ status: 'idle', roomCode: null, roomName: '', roomRules: null, myPlayerAvatar: '', gameState: null, lobbyPlayers: [], error: null });
   },
 
   // ── Spielaktionen (werden entweder direkt ausgeführt oder via Kanal gesendet) ──
@@ -305,10 +312,10 @@ function syncLobbyFromPresence(
   channel: RealtimeChannel,
   set: (s: Partial<OnlineStore>) => void
 ) {
-  const presenceState = channel.presenceState<{ id: string; name: string; isHost: boolean }>();
+  const presenceState = channel.presenceState<{ id: string; name: string; avatar: string; isHost: boolean }>();
   const players: LobbyPlayer[] = Object.values(presenceState)
     .flat()
-    .map(p => ({ id: p.id, name: p.name, isHost: p.isHost }));
+    .map(p => ({ id: p.id, name: p.name, avatar: p.avatar || '😎', isHost: p.isHost }));
   set({ lobbyPlayers: players });
 }
 

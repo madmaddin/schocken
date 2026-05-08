@@ -55,6 +55,7 @@ export interface AIPlayerConfig {
 export interface Player {
   id: string;
   name: string;
+  avatar: string;
   type: PlayerType;
   aiConfig?: AIPlayerConfig;
   covers: number;

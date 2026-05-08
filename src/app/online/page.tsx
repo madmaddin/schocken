@@ -8,6 +8,7 @@ import { STANDARD_RULES } from '@/game/rules/presets';
 import { getAIPlayerName } from '@/game/ai/AIPlayer';
 import { generateRoomCode, generatePlayerId } from '@/lib/roomCode';
 import { RulesConfigPanel } from '@/components/game/RulesConfig';
+import { AvatarPicker, DEFAULT_HUMAN_AVATAR } from '@/components/game/AvatarPicker';
 import type { AIPlayerConfig, AISkillLevel, AIRiskProfile, GameRules } from '@/game/rules/types';
 
 const DEFAULT_AI_CONFIG: AIPlayerConfig = { skillLevel: 'fortgeschritten', riskProfile: 'ausgewogen' };
@@ -28,6 +29,7 @@ export default function OnlinePage() {
 
   // ── Raum erstellen ──
   const [hostName, setHostName] = useState('');
+  const [hostAvatar, setHostAvatar] = useState(DEFAULT_HUMAN_AVATAR);
   const [roomName, setRoomName] = useState('');
   const [aiCount, setAiCount] = useState(0);
   const [aiConfigs, setAiConfigs] = useState<AIPlayerConfig[]>([]);
@@ -38,6 +40,7 @@ export default function OnlinePage() {
   // ── Raum beitreten ──
   const [joinCode, setJoinCode] = useState('');
   const [joinName, setJoinName] = useState('');
+  const [joinAvatar, setJoinAvatar] = useState(DEFAULT_HUMAN_AVATAR);
 
   const handleAiCountChange = (count: number) => {
     setAiCount(count);
@@ -55,8 +58,8 @@ export default function OnlinePage() {
     if (!hostName.trim() || !roomName.trim()) return;
     const roomCode = generateRoomCode();
     const hostId = generatePlayerId();
-    sessionStorage.setItem(`room:${roomCode}`, JSON.stringify({ isHost: true, playerId: hostId, playerName: hostName.trim() }));
-    await createRoom({ roomCode, roomName: roomName.trim(), hostId, hostName: hostName.trim(), rules, aiPlayers: aiConfigs });
+    sessionStorage.setItem(`room:${roomCode}`, JSON.stringify({ isHost: true, playerId: hostId, playerName: hostName.trim(), avatar: hostAvatar }));
+    await createRoom({ roomCode, roomName: roomName.trim(), hostId, hostName: hostName.trim(), hostAvatar, rules, aiPlayers: aiConfigs });
     router.push(`/room/${roomCode}`);
   };
 
@@ -64,8 +67,8 @@ export default function OnlinePage() {
     const code = joinCode.trim().toUpperCase();
     if (!code || !joinName.trim()) return;
     const playerId = generatePlayerId();
-    sessionStorage.setItem(`room:${code}`, JSON.stringify({ isHost: false, playerId, playerName: joinName.trim() }));
-    await joinRoom(code, playerId, joinName.trim());
+    sessionStorage.setItem(`room:${code}`, JSON.stringify({ isHost: false, playerId, playerName: joinName.trim(), avatar: joinAvatar }));
+    await joinRoom(code, playerId, joinName.trim(), joinAvatar);
     router.push(`/room/${code}`);
   };
 
@@ -95,11 +98,20 @@ export default function OnlinePage() {
           <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Neuen Raum erstellen</h2>
 
           <div className="space-y-3">
-            <input
-              type="text" value={hostName} onChange={e => setHostName(e.target.value)}
-              placeholder="Dein Name" maxLength={20}
-              className="w-full bg-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
-            />
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gray-700 flex items-center justify-center text-2xl shrink-0">
+                {hostAvatar}
+              </div>
+              <input
+                type="text" value={hostName} onChange={e => setHostName(e.target.value)}
+                placeholder="Dein Name" maxLength={20}
+                className="flex-1 bg-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-gray-400">Dein Avatar</p>
+              <AvatarPicker value={hostAvatar} onChange={setHostAvatar} />
+            </div>
             <input
               type="text" value={roomName} onChange={e => setRoomName(e.target.value)}
               placeholder="Raumname (z.B. Stammtisch-Runde)" maxLength={30}
@@ -194,11 +206,20 @@ export default function OnlinePage() {
         {/* ── Raum beitreten ── */}
         <div className="bg-gray-800 rounded-2xl p-5 space-y-3">
           <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Raum beitreten</h2>
-          <input
-            type="text" value={joinName} onChange={e => setJoinName(e.target.value)}
-            placeholder="Dein Name" maxLength={20}
-            className="w-full bg-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
-          />
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gray-700 flex items-center justify-center text-2xl shrink-0">
+              {joinAvatar}
+            </div>
+            <input
+              type="text" value={joinName} onChange={e => setJoinName(e.target.value)}
+              placeholder="Dein Name" maxLength={20}
+              className="flex-1 bg-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 placeholder-gray-500"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-xs text-gray-400">Dein Avatar</p>
+            <AvatarPicker value={joinAvatar} onChange={setJoinAvatar} />
+          </div>
           <div className="flex gap-2">
             <input
               type="text" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())}
