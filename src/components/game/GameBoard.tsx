@@ -19,6 +19,7 @@ export interface GameBoardActions {
   startSecondHalf: () => void;
   resetGame?: () => void;
   restartGame?: () => void;
+  beginGame?: () => void;
   toggleFastMode?: () => void;
 }
 
@@ -32,7 +33,7 @@ interface GameBoardProps {
 }
 
 export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = false, actions, roundAckedBy }: GameBoardProps) {
-  const { roll, toggleHold, finalizeTurn, applySechsenDrehen, proceedAfterRound, startSecondHalf, resetGame, restartGame, toggleFastMode } = actions;
+  const { roll, toggleHold, finalizeTurn, applySechsenDrehen, proceedAfterRound, startSecondHalf, resetGame, restartGame, beginGame, toggleFastMode } = actions;
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
@@ -198,6 +199,19 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
 
           {/* ─── Aktionsbereich ─── */}
           <div className="space-y-2 sm:space-y-3">
+
+            {/* Spiel noch nicht gestartet — Host muss explizit starten */}
+            {phase === 'loading' && isHost && beginGame && (
+              <button onClick={beginGame}
+                className="w-full py-4 rounded-2xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all active:scale-95">
+                Spiel starten 🎲
+              </button>
+            )}
+            {phase === 'loading' && !isHost && (
+              <div className="bg-gray-800/60 border border-gray-600 rounded-2xl px-4 py-3 text-center text-gray-400 text-sm">
+                Warte auf Host…
+              </div>
+            )}
 
             {/* Rundenauswertung — Training (kein roundAckedBy): nur Host sieht Weiter */}
             {phase === 'round_result' && roundAckedBy === undefined && isHost && !fastMode && (

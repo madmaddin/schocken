@@ -15,6 +15,7 @@ export default function Home() {
   const startSecondHalf = useGameStore((s) => s.startSecondHalf);
   const resetGame = useGameStore((s) => s.resetGame);
   const restartTrainingGame = useGameStore((s) => s.restartTrainingGame);
+  const beginGame = useGameStore((s) => s.beginGame);
   const toggleFastMode = useGameStore((s) => s.toggleFastMode);
 
   if (gameState) {
@@ -24,7 +25,7 @@ export default function Home() {
         myPlayerId="human"
         isHost={true}
         fastMode={fastMode}
-        actions={{ roll, toggleHold, finalizeTurn, applySechsenDrehen, proceedAfterRound, startSecondHalf, resetGame, restartGame: restartTrainingGame, toggleFastMode }}
+        actions={{ roll, toggleHold, finalizeTurn, applySechsenDrehen, proceedAfterRound, startSecondHalf, resetGame, restartGame: restartTrainingGame, beginGame, toggleFastMode }}
       />
     );
   }

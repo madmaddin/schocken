@@ -23,6 +23,7 @@ interface GameStore {
 
   startTrainingGame: (humanName: string, humanAvatar: string, aiCount: number, rules: GameRules, aiConfigs: AIPlayerConfig[]) => void;
   restartTrainingGame: () => void;
+  beginGame: () => void;
   // Menschlicher Spieler würfelt (oder würfelt nochmal)
   roll: () => void;
   toggleHold: (dieIndex: 0 | 1 | 2) => void;
@@ -77,7 +78,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       triggerAIIfNeeded(engine, newState, set);
     });
 
-    engine.startLoadingRound();
     set({ engine, gameState: engine.getState() });
   },
 
@@ -109,6 +109,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     engine.finalizeTurn();
   },
 
+  beginGame: () => get().engine?.startLoadingRound(),
   startSecondHalf: () => get().engine?.proceedAfterHalfTime(),
   proceedAfterRound: () => get().engine?.proceedAfterRound(),
   resetGame: () => set({ engine: null, gameState: null, isAIThinking: false, fastMode: false }),

@@ -495,7 +495,7 @@ export class GameEngine {
       ...p, covers: 0, isEliminated: false, isOut: false, isAbsent: false,
     }));
     this.state = createInitialState(freshPlayers, this.state.rules);
-    this.startLoadingRound();
+    this.emit();
   }
 
   private startFinale(p1Id: string, p2Id: string): void {

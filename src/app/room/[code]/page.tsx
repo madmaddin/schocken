@@ -239,6 +239,7 @@ export default function RoomPage() {
           startSecondHalf: store.startSecondHalf,
           resetGame: () => { store.leaveRoom(); router.push('/online'); },
           restartGame: store.isHost ? store.restartGame : undefined,
+          beginGame: store.isHost ? store.beginGame : undefined,
         }}
       />
     );

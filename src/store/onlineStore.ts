@@ -59,6 +59,7 @@ interface OnlineStore {
   joinRoom: (code: string, playerId: string, playerName: string, playerAvatar: string) => Promise<void>;
   startGame: () => void;
   restartGame: () => void;
+  beginGame: () => void;
   leaveRoom: () => void;
 
   roll: () => void;
@@ -283,8 +284,7 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
       triggerAIIfNeeded(_engine!, newState);
     });
 
-    _engine.startLoadingRound();
-    set({ status: 'playing', roundAckedBy: [] });
+    set({ gameState: _engine.getState(), status: 'playing', roundAckedBy: [] });
     _channel.send({ type: 'broadcast', event: 'game_started', payload: {} });
   },
 
@@ -307,10 +307,15 @@ export const useOnlineStore = create<OnlineStore>((set, get) => ({
       triggerAIIfNeeded(_engine!, newState);
     });
 
-    set({ roundAckedBy: [] });
-    _engine.startLoadingRound();
-    set({ status: 'playing' });
+    set({ gameState: _engine.getState(), roundAckedBy: [], status: 'playing' });
     _channel.send({ type: 'broadcast', event: 'game_restart', payload: {} });
+  },
+
+  // ── Spiel wirklich beginnen (Host drückt "Starten" im Spielfeld) ──────────
+
+  beginGame: () => {
+    if (!_engine || !get().isHost) return;
+    _engine.startLoadingRound();
   },
 
   // ── Raum verlassen ────────────────────────────────────────────────────────
