@@ -61,6 +61,7 @@ export interface Player {
   covers: number;
   isEliminated: boolean;
   isOut: boolean;
+  isAbsent?: boolean;
 }
 
 export interface TurnState {

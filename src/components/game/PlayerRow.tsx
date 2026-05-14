@@ -15,8 +15,8 @@ interface PlayerRowProps {
   isHalf1Loser: boolean;
   stoodEarlyAt: number | null;
   rollInfo: { used: number; max: number } | null;
-  // Verdeckt: welche Würfel sichtbar sind (null = alle sichtbar)
   visibilityMask: [boolean, boolean, boolean] | null;
+  ackStatus?: 'acked' | 'waiting' | null;
 }
 
 const combinationColors: Record<string, string> = {
@@ -32,20 +32,21 @@ const combinationColors: Record<string, string> = {
 export function PlayerRow({
   player, orderNumber, finalRoll, activeTurn,
   isCurrentPlayer, isLeading, isTrailing, totalCovers,
-  isHalf1Loser, stoodEarlyAt, rollInfo, visibilityMask,
+  isHalf1Loser, stoodEarlyAt, rollInfo, visibilityMask, ackStatus,
 }: PlayerRowProps) {
   const coverDots = Array.from({ length: totalCovers }, (_, i) => i < player.covers);
 
   let rowBg = 'bg-gray-800/50 border border-gray-700/50';
-  if (isCurrentPlayer) rowBg = 'bg-amber-900/40 border border-amber-500/60';
+  if (player.isAbsent) rowBg = 'bg-gray-800/30 border border-gray-700/30 opacity-60';
+  else if (isCurrentPlayer) rowBg = 'bg-amber-900/40 border border-amber-500/60';
   else if (isLeading) rowBg = 'bg-green-900/25 border border-green-700/40';
   else if (isTrailing) rowBg = 'bg-red-900/25 border border-red-700/40';
 
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${rowBg}`}>
+    <div className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl transition-all duration-200 ${rowBg}`}>
 
       {/* Reihenfolge-Nummer */}
-      <div className="w-6 shrink-0 text-center">
+      <div className="w-5 sm:w-6 shrink-0 text-center">
         {orderNumber !== null ? (
           <span className={`text-sm font-bold ${isCurrentPlayer ? 'text-amber-400' : 'text-gray-500'}`}>
             {orderNumber}
@@ -55,12 +56,13 @@ export function PlayerRow({
         )}
       </div>
 
-      {/* Name + Typ */}
-      <div className="w-28 min-w-28 shrink-0">
+      {/* Avatar + Name */}
+      <div className="w-24 sm:w-28 min-w-24 shrink-0">
         <div className="flex items-center gap-1.5">
           <span className="text-base">{player.avatar}</span>
-          <span className={`text-sm font-medium truncate ${isCurrentPlayer ? 'text-amber-300' : 'text-gray-200'}`}>
+          <span className={`text-xs sm:text-sm font-medium truncate ${isCurrentPlayer ? 'text-amber-300' : player.isAbsent ? 'text-gray-500' : 'text-gray-200'}`}>
             {player.name}
+            {player.isAbsent && <span className="ml-1 text-xs text-gray-600">📵</span>}
           </span>
         </div>
         {isCurrentPlayer && activeTurn && (
@@ -73,26 +75,25 @@ export function PlayerRow({
             {player.type === 'ai' ? 'ist dran' : '← du bist dran'}
           </span>
         )}
+        {ackStatus === 'waiting' && (
+          <span className="text-xs text-gray-500 ml-6">wartet…</span>
+        )}
+        {ackStatus === 'acked' && (
+          <span className="text-xs text-green-400 ml-6">bereit ✓</span>
+        )}
       </div>
 
       {/* Würfelanzeige */}
-      <div className="flex-1 flex items-center gap-2 min-w-0 flex-wrap">
+      <div className="flex-1 flex items-center gap-1 sm:gap-2 min-w-0 flex-wrap">
         {finalRoll || activeTurn ? (
           <>
             {(() => {
               const rawDice = activeTurn ? activeTurn.dice : finalRoll!.dice;
-              // Verdeckt: nicht-gehaltene Würfel als null (= "?") maskieren
               const displayDice: (DieValue | null)[] =
                 visibilityMask
                   ? rawDice.map((d, i) => (visibilityMask[i] ? d : null))
                   : [...rawDice];
-              return (
-                <DiceDisplay
-                  dice={displayDice}
-                  held={activeTurn?.held}
-                  small
-                />
-              );
+              return <DiceDisplay dice={displayDice} held={activeTurn?.held} small />;
             })()}
             {rollInfo && (
               <span className="text-xs text-gray-500 shrink-0 tabular-nums">
@@ -110,12 +111,12 @@ export function PlayerRow({
         )}
       </div>
 
-      {/* Deckel-Dots + Halbzeit-Marker */}
-      <div className="flex flex-wrap gap-0.5 w-24 justify-end shrink-0 items-end">
+      {/* Deckel-Dots */}
+      <div className="flex flex-wrap gap-[2px] sm:gap-0.5 w-16 sm:w-24 justify-end shrink-0 items-end">
         {coverDots.map((filled, i) => (
           <div
             key={i}
-            className={`w-3 h-3 rounded-full border transition-colors
+            className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border transition-colors
               ${filled
                 ? isTrailing ? 'bg-red-500 border-red-400' : 'bg-amber-500 border-amber-400'
                 : 'bg-gray-700 border-gray-600'}`}
@@ -124,7 +125,7 @@ export function PlayerRow({
         <div className="w-full flex items-center justify-end gap-1 mt-0.5">
           {isHalf1Loser && (
             <div
-              className="w-2.5 h-4 bg-amber-500 opacity-80 shrink-0"
+              className="w-2 h-3.5 bg-amber-500 opacity-80 shrink-0"
               style={{ borderRadius: '50% 0 0 50% / 50% 0 0 50%' }}
               title="1. Halbzeit verloren"
             />

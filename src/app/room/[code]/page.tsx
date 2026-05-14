@@ -187,15 +187,20 @@ export default function RoomPage() {
             <p className="text-xs text-gray-500">Teile diesen Link per WhatsApp mit deinen Mitspielern.</p>
           </div>
 
-          {/* Host: Spiel starten */}
+          {/* Host: Hinweis + Spiel starten */}
           {store.isHost && (
-            <button
-              onClick={() => store.startGame()}
-              disabled={store.lobbyPlayers.filter(p => !p.id.startsWith('ai-')).length < 1}
-              className="w-full py-4 rounded-2xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all disabled:opacity-40"
-            >
-              Spiel starten 🎲
-            </button>
+            <>
+              <div className="bg-amber-900/30 border border-amber-700/50 rounded-2xl px-4 py-3 text-sm text-amber-300">
+                Starte das Spiel erst, wenn alle Mitspieler im Wartebereich sichtbar sind.
+              </div>
+              <button
+                onClick={() => store.startGame()}
+                disabled={store.lobbyPlayers.filter(p => !p.id.startsWith('ai-')).length < 1}
+                className="w-full py-4 rounded-2xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all disabled:opacity-40"
+              >
+                Spiel starten 🎲
+              </button>
+            </>
           )}
 
           {!store.isHost && (
@@ -224,6 +229,7 @@ export default function RoomPage() {
         myPlayerId={store.myPlayerId}
         isHost={store.isHost}
         fastMode={false}
+        roundAckedBy={store.roundAckedBy}
         actions={{
           roll: store.roll,
           toggleHold: store.toggleHold,
@@ -232,6 +238,7 @@ export default function RoomPage() {
           proceedAfterRound: store.proceedAfterRound,
           startSecondHalf: store.startSecondHalf,
           resetGame: () => { store.leaveRoom(); router.push('/online'); },
+          restartGame: store.isHost ? store.restartGame : undefined,
         }}
       />
     );

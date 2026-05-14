@@ -6,13 +6,23 @@ import { STANDARD_RULES } from '@/game/rules/presets';
 import { getAIPlayerName, getAIPlayerAvatar } from '@/game/ai/AIPlayer';
 import type { GameState, GameRules, Player, AIPlayerConfig } from '@/game/rules/types';
 
+interface LastGameConfig {
+  humanName: string;
+  humanAvatar: string;
+  aiCount: number;
+  rules: GameRules;
+  aiConfigs: AIPlayerConfig[];
+}
+
 interface GameStore {
   engine: GameEngine | null;
   gameState: GameState | null;
   isAIThinking: boolean;
   fastMode: boolean;
+  lastGameConfig: LastGameConfig | null;
 
   startTrainingGame: (humanName: string, humanAvatar: string, aiCount: number, rules: GameRules, aiConfigs: AIPlayerConfig[]) => void;
+  restartTrainingGame: () => void;
   // Menschlicher Spieler würfelt (oder würfelt nochmal)
   roll: () => void;
   toggleHold: (dieIndex: 0 | 1 | 2) => void;
@@ -30,8 +40,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameState: null,
   isAIThinking: false,
   fastMode: false,
+  lastGameConfig: null,
+
+  restartTrainingGame: () => {
+    const cfg = get().lastGameConfig;
+    if (cfg) get().startTrainingGame(cfg.humanName, cfg.humanAvatar, cfg.aiCount, cfg.rules, cfg.aiConfigs);
+  },
 
   startTrainingGame: (humanName, humanAvatar, aiCount, rules, aiConfigs) => {
+    set({ lastGameConfig: { humanName, humanAvatar, aiCount, rules, aiConfigs } });
     const defaultConfig: AIPlayerConfig = { skillLevel: 'fortgeschritten', riskProfile: 'ausgewogen' };
     const players: Player[] = [
       {

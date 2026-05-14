@@ -16,7 +16,7 @@ interface DiceDisplayProps {
 }
 
 export function DiceDisplay({ dice, held, onToggleHold, canHold, small }: DiceDisplayProps) {
-  const size = small ? 'w-9 h-9 text-2xl' : 'w-12 h-12 text-3xl';
+  const size = small ? 'w-8 h-8 text-xl sm:w-9 sm:h-9 sm:text-2xl' : 'w-12 h-12 text-3xl';
 
   if (!dice) {
     return (

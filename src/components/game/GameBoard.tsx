@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { PlayerRow } from './PlayerRow';
 import { DiceDisplay } from './DiceDisplay';
 import { RoundHistory } from './RoundHistory';
@@ -18,6 +18,7 @@ export interface GameBoardActions {
   proceedAfterRound: () => void;
   startSecondHalf: () => void;
   resetGame?: () => void;
+  restartGame?: () => void;
   toggleFastMode?: () => void;
 }
 
@@ -27,12 +28,13 @@ interface GameBoardProps {
   isHost?: boolean;
   fastMode?: boolean;
   actions: GameBoardActions;
+  roundAckedBy?: string[];
 }
 
-export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = false, actions }: GameBoardProps) {
-  const { roll, toggleHold, finalizeTurn, applySechsenDrehen, proceedAfterRound, startSecondHalf, resetGame, toggleFastMode } = actions;
+export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = false, actions, roundAckedBy }: GameBoardProps) {
+  const { roll, toggleHold, finalizeTurn, applySechsenDrehen, proceedAfterRound, startSecondHalf, resetGame, restartGame, toggleFastMode } = actions;
+  const [showHistory, setShowHistory] = useState(false);
 
-  // Fast-Mode: Rundenauswertung automatisch anstoßen
   useEffect(() => {
     if (gameState.phase === 'round_result' && fastMode) {
       const t = setTimeout(() => proceedAfterRound(), 400);
@@ -63,7 +65,6 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
 
   const currentPlayerName = players.find(p => p.id === currentPlayerId)?.name;
 
-  // Grün/Rot-Highlight
   const rolledEntries = Object.entries(roundFinalRolls).filter(([, r]) => r !== null) as [string, import('@/game/rules/types').EvaluatedRoll][];
   const rolledValues = rolledEntries.map(([, r]) => r.value);
   const roundBestValue  = rolledValues.length > 0 ? Math.max(...rolledValues) : null;
@@ -77,17 +78,22 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
   const currentPlayer = players.find(p => p.id === currentPlayerId);
   const showFastForward = !!toggleFastMode && phase === 'playing' && currentPlayerId !== myPlayerId && currentPlayer?.type === 'ai';
 
+  // Ack-Status ermitteln (Online-Modus wenn roundAckedBy übergeben)
+  const myPlayer = players.find(p => p.id === myPlayerId);
+  const iHaveAcked = roundAckedBy !== undefined && roundAckedBy.includes(myPlayerId);
+  const activeHumans = players.filter(p => p.type === 'human' && !p.isEliminated && !p.isAbsent);
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-3">
-      <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-4 items-start">
+    <div className="min-h-screen bg-gray-900 text-white p-2 sm:p-3">
+      <div className="max-w-4xl mx-auto flex flex-col md:flex-row gap-3 sm:gap-4 items-start">
 
         {/* ─── Linke Spalte: Spielfeld ─── */}
-        <div className="flex-1 flex flex-col gap-3 min-w-0">
+        <div className="flex-1 flex flex-col gap-2 sm:gap-3 min-w-0 w-full">
 
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-amber-400">🎲 Schocken</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-amber-400">🎲 Schocken</h1>
               <p className="text-xs text-gray-400">
                 {HALF_LABELS[half]} · Runde {round}
                 {maxRollsThisRound < 3 && phase === 'playing' && (
@@ -95,21 +101,28 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
                 )}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* History-Toggle (nur mobile) */}
+              <button
+                onClick={() => setShowHistory(v => !v)}
+                className="md:hidden text-xs px-2 py-1 rounded-lg bg-gray-800 text-gray-400 hover:text-white transition-colors"
+              >
+                {showHistory ? 'Verlauf ×' : 'Verlauf'}
+              </button>
               <div className="text-center">
-                <div className="text-2xl font-bold text-amber-400">{coverPool}</div>
-                <div className="text-xs text-gray-400">im Pool</div>
+                <div className="text-xl sm:text-2xl font-bold text-amber-400">{coverPool}</div>
+                <div className="text-xs text-gray-400">Pool</div>
               </div>
               {resetGame && (
                 <button onClick={resetGame} className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-colors">
-                  <RotateCcw size={18} />
+                  <RotateCcw size={16} />
                 </button>
               )}
             </div>
           </div>
 
           {/* Aktive Spieler */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5 sm:gap-2">
             {players.filter(p => !p.isOut).map((player) => {
               const orderIdx = roundPlayerOrder.indexOf(player.id);
               const rollCount = roundRollCounts[player.id];
@@ -141,6 +154,13 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
                 return null;
               })();
 
+              // Ack-Status für diesen Spieler
+              const ackStatus: 'acked' | 'waiting' | null = (() => {
+                if (phase !== 'round_result' || roundAckedBy === undefined) return null;
+                if (player.type !== 'human' || player.isAbsent) return null;
+                return roundAckedBy.includes(player.id) ? 'acked' : 'waiting';
+              })();
+
               return (
                 <PlayerRow
                   key={player.id}
@@ -156,6 +176,7 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
                   stoodEarlyAt={stoodEarlyAt}
                   rollInfo={rollInfo}
                   visibilityMask={visibilityMask}
+                  ackStatus={ackStatus}
                 />
               );
             })}
@@ -163,43 +184,70 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
 
           {/* Pausierte Spieler */}
           {players.filter(p => p.isOut).length > 0 && (
-            <div className="border border-gray-700 rounded-xl p-3 space-y-1">
+            <div className="border border-gray-700 rounded-xl p-2 sm:p-3 space-y-1">
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Pausiert (0 Deckel)</p>
               {players.filter(p => p.isOut).map(p => (
                 <div key={p.id} className="flex items-center gap-2 text-sm text-gray-500">
                   <span>{p.avatar}</span>
                   <span>{p.name}</span>
+                  {p.isAbsent && <span className="text-xs">📵</span>}
                 </div>
               ))}
             </div>
           )}
 
           {/* ─── Aktionsbereich ─── */}
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
 
-            {/* Alle fertig – Weiter-Button (nur Host) */}
-            {phase === 'round_result' && isHost && !fastMode && (
-              <button
-                onClick={proceedAfterRound}
-                className="w-full py-4 rounded-2xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all active:scale-95"
-              >
+            {/* Rundenauswertung — Training (kein roundAckedBy): nur Host sieht Weiter */}
+            {phase === 'round_result' && roundAckedBy === undefined && isHost && !fastMode && (
+              <button onClick={proceedAfterRound}
+                className="w-full py-4 rounded-2xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all active:scale-95">
                 Weiter →
               </button>
             )}
-            {phase === 'round_result' && isHost && fastMode && (
+            {phase === 'round_result' && roundAckedBy === undefined && isHost && fastMode && (
               <div className="bg-gray-800/60 border border-gray-600 rounded-2xl px-4 py-3 text-center text-gray-400 text-sm">
                 Auswertung…
               </div>
             )}
-            {phase === 'round_result' && !isHost && (
+            {phase === 'round_result' && roundAckedBy === undefined && !isHost && (
               <div className="bg-gray-800/60 border border-gray-600 rounded-2xl px-4 py-3 text-center text-gray-400 text-sm">
                 Warte auf Weiter…
               </div>
             )}
 
+            {/* Rundenauswertung — Online (roundAckedBy vorhanden): alle Humans müssen bestätigen */}
+            {phase === 'round_result' && roundAckedBy !== undefined && (
+              <>
+                {myPlayer?.type === 'human' && !myPlayer.isAbsent && (
+                  <button
+                    onClick={proceedAfterRound}
+                    disabled={iHaveAcked}
+                    className={`w-full py-4 rounded-2xl font-bold text-lg transition-all active:scale-95
+                      ${iHaveAcked
+                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                        : 'bg-amber-500 hover:bg-amber-400 text-gray-900'}`}
+                  >
+                    {iHaveAcked ? '✓ Warte auf andere…' : 'Weiter →'}
+                  </button>
+                )}
+                {activeHumans.length > 1 && (
+                  <div className="bg-gray-800/60 rounded-xl px-3 py-2 flex flex-wrap gap-x-4 gap-y-1">
+                    {activeHumans.map(p => (
+                      <span key={p.id} className="text-xs flex items-center gap-1">
+                        <span>{roundAckedBy.includes(p.id) ? '✓' : '⏳'}</span>
+                        <span className={roundAckedBy.includes(p.id) ? 'text-green-400' : 'text-gray-400'}>{p.name}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Mein Zug */}
             {phase === 'playing' && isMyTurn && (
-              <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+              <div className="bg-gray-800 rounded-2xl p-3 sm:p-4 space-y-3">
                 {hasRolled && myTurn && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs text-gray-400">
@@ -226,30 +274,28 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
                 )}
                 <div className="flex flex-col gap-2">
                   {showSechsenDrehen && (
-                    <button
-                      onClick={applySechsenDrehen}
-                      className="w-full py-3 rounded-xl font-bold text-base bg-orange-600 hover:bg-orange-500 text-white transition-all active:scale-95"
-                    >
+                    <button onClick={applySechsenDrehen}
+                      className="w-full py-3 rounded-xl font-bold text-base bg-orange-600 hover:bg-orange-500 text-white transition-all active:scale-95">
                       🔄 Sechsen drehen → Pflichtwurf
                     </button>
                   )}
                   <div className="flex gap-2">
                     {(!hasRolled || canRollAgain) && !myTurn?.mustRoll && (
-                      <button onClick={roll} className="flex-1 py-4 rounded-xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all active:scale-95">
+                      <button onClick={roll}
+                        className="flex-1 py-4 rounded-xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all active:scale-95">
                         🎲 {hasRolled ? 'Nochmal!' : 'Würfeln'}
                       </button>
                     )}
                     {myTurn?.mustRoll && (
-                      <button onClick={roll} className="flex-1 py-4 rounded-xl font-bold text-lg bg-red-600 hover:bg-red-500 text-white transition-all active:scale-95">
+                      <button onClick={roll}
+                        className="flex-1 py-4 rounded-xl font-bold text-lg bg-red-600 hover:bg-red-500 text-white transition-all active:scale-95">
                         🎲 Pflichtwurf!
                       </button>
                     )}
                     {hasRolled && !myTurn?.mustRoll && (
-                      <button
-                        onClick={finalizeTurn}
+                      <button onClick={finalizeTurn}
                         className={`py-4 rounded-xl font-bold transition-all active:scale-95
-                          ${canRollAgain ? 'px-4 bg-gray-700 hover:bg-gray-600 text-white text-sm' : 'flex-1 bg-amber-500 hover:bg-amber-400 text-gray-900 text-lg'}`}
-                      >
+                          ${canRollAgain ? 'px-4 bg-gray-700 hover:bg-gray-600 text-white text-sm' : 'flex-1 bg-amber-500 hover:bg-amber-400 text-gray-900 text-lg'}`}>
                         {canRollAgain ? 'Stehen ✓' : '✓ Fertig'}
                       </button>
                     )}
@@ -265,14 +311,10 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
                   {currentPlayerName} {activeTurn ? `würfelt (${activeTurn.rollCount}×)…` : 'ist dran…'}
                 </span>
                 {showFastForward && (
-                  <button
-                    onClick={toggleFastMode}
+                  <button onClick={toggleFastMode}
                     className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                      fastMode
-                        ? 'bg-amber-500 text-gray-900 hover:bg-amber-400'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
+                      fastMode ? 'bg-amber-500 text-gray-900 hover:bg-amber-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}>
                     {fastMode ? '⏩ Schnell' : '⏩ Vorspulen'}
                   </button>
                 )}
@@ -282,7 +324,7 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
             {/* Halbzeit-Screen */}
             {phase === 'half_time' && (
               <div className="space-y-3">
-                <div className="bg-amber-900/30 border border-amber-600/40 rounded-2xl p-5 space-y-3">
+                <div className="bg-amber-900/30 border border-amber-600/40 rounded-2xl p-4 sm:p-5 space-y-3">
                   <div className="text-center space-y-1">
                     <div className="text-3xl">{half === 1 ? '🍺' : half === 2 ? '🍻' : '🏆'}</div>
                     <h2 className="text-lg font-bold text-amber-400">
@@ -318,10 +360,8 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
                   )}
                 </div>
                 {isHost && (
-                  <button
-                    onClick={startSecondHalf}
-                    className="w-full py-4 rounded-2xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all"
-                  >
+                  <button onClick={startSecondHalf}
+                    className="w-full py-4 rounded-2xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all">
                     {half === 1 ? '2. Halbzeit starten' : isFinaleSetup ? 'Finale starten' : 'Ergebnis anzeigen'}
                   </button>
                 )}
@@ -336,7 +376,7 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
             {/* Spiel vorbei */}
             {phase === 'finished' && (
               <div className="space-y-3">
-                <div className="bg-red-900/40 border border-red-500/50 rounded-2xl p-5 text-center space-y-1">
+                <div className="bg-red-900/40 border border-red-500/50 rounded-2xl p-4 sm:p-5 text-center space-y-1">
                   <div className="text-3xl">🎉</div>
                   <h2 className="text-lg font-bold text-red-400">Spiel beendet!</h2>
                   <p className="text-gray-300 text-sm">
@@ -345,21 +385,35 @@ export function GameBoard({ gameState, myPlayerId, isHost = true, fastMode = fal
                     </span>{' '}gibt eine Runde aus!
                   </p>
                 </div>
-                {resetGame && (
-                  <button onClick={resetGame} className="w-full py-4 rounded-2xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all">
-                    Neues Spiel
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  {restartGame && isHost && (
+                    <button onClick={restartGame}
+                      className="flex-1 py-4 rounded-2xl font-bold text-lg bg-amber-500 hover:bg-amber-400 text-gray-900 transition-all">
+                      Nochmal 🎲
+                    </button>
+                  )}
+                  {!isHost && restartGame === undefined && (
+                    <div className="flex-1 bg-gray-800/60 border border-gray-700 rounded-2xl px-4 py-3 text-center text-gray-400 text-sm">
+                      Warte auf Host…
+                    </div>
+                  )}
+                  {resetGame && (
+                    <button onClick={resetGame}
+                      className={`py-4 rounded-2xl font-bold text-lg bg-gray-700 hover:bg-gray-600 text-white transition-all ${restartGame && isHost ? 'px-5' : 'flex-1'}`}>
+                      Beenden
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
 
         {/* ─── Rechte Spalte: Rundenhistorie ─── */}
-        <div className="w-full md:w-64 shrink-0">
+        <div className={`w-full md:w-64 shrink-0 ${showHistory ? 'block' : 'hidden md:block'}`}>
           <div className="bg-gray-800/50 rounded-2xl p-3">
             <h2 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Rundenhistorie</h2>
-            <div className="max-h-[70vh] overflow-y-auto">
+            <div className="max-h-[50vh] md:max-h-[70vh] overflow-y-auto">
               <RoundHistory history={roundHistory} />
             </div>
           </div>

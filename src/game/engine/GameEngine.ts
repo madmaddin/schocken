@@ -47,7 +47,7 @@ export class GameEngine {
   }
 
   private activePlayers(): Player[] {
-    return this.state.players.filter(p => !p.isEliminated && !p.isOut);
+    return this.state.players.filter(p => !p.isEliminated && !p.isOut && !p.isAbsent);
   }
 
   private computeRoundOrderFromList(players: Player[], starterId: string): string[] {
@@ -335,6 +335,17 @@ export class GameEngine {
       p.id === loserId ? { ...p, covers: p.covers + actualCoversLost } : p
     );
 
+    // Abwesende Spieler: Deckel nach dieser Runde in den Pool
+    let absentPool = 0;
+    updatedPlayers = updatedPlayers.map(p => {
+      if (p.isAbsent && !p.isEliminated) {
+        absentPool += p.covers;
+        return { ...p, covers: 0, isEliminated: true };
+      }
+      return p;
+    });
+    newCoverPool += absentPool;
+
     if (newCoverPool === 0) {
       updatedPlayers = updatedPlayers.map(p => ({ ...p, isOut: !p.isEliminated && p.covers === 0 }));
     } else {
@@ -377,7 +388,7 @@ export class GameEngine {
       };
       this.emit();
     } else {
-      const nextActive = updatedPlayers.filter(p => !p.isEliminated && !p.isOut);
+      const nextActive = updatedPlayers.filter(p => !p.isEliminated && !p.isOut && !p.isAbsent);
       const nextStarter = nextActive.find(p => p.id === loserId) ?? nextActive[0];
       const nextOrder = this.computeRoundOrderFromList(nextActive, nextStarter.id);
       const nextRound = this.state.round + 1;
@@ -432,7 +443,7 @@ export class GameEngine {
 
   private startHalf(half: 2 | 3, starterId: string): void {
     const resetPlayers = this.state.players.map(p => ({ ...p, covers: 0, isOut: false }));
-    const active = resetPlayers.filter(p => !p.isEliminated);
+    const active = resetPlayers.filter(p => !p.isEliminated && !p.isAbsent);
     const order = this.computeRoundOrderFromList(active, starterId);
     this.addLog(`--- ${half === 2 ? '2. Halbzeit' : 'Finale'} ---`);
     this.state = {
@@ -453,6 +464,38 @@ export class GameEngine {
       lastRoundResult: null,
     };
     this.emit();
+  }
+
+  // ─── Spieler als abwesend markieren ──────────────────────────────────
+
+  async markPlayerAbsent(playerId: string): Promise<void> {
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player || player.isAbsent || player.isEliminated) return;
+
+    this.state = {
+      ...this.state,
+      players: this.state.players.map(p => p.id === playerId ? { ...p, isAbsent: true } : p),
+    };
+    this.emit();
+
+    // Ist der Spieler gerade am Zug → Runde automatisch abschließen
+    if (this.state.phase === 'playing' && this.state.currentPlayerId === playerId) {
+      if (!this.state.activeTurn) {
+        this.rollActive();
+        await delay(150);
+      }
+      this.finalizeTurn();
+    }
+  }
+
+  // ─── Spiel neu starten (gleiche Spieler, gleiche Regeln) ─────────────
+
+  restartGame(): void {
+    const freshPlayers = this.state.players.map(p => ({
+      ...p, covers: 0, isEliminated: false, isOut: false, isAbsent: false,
+    }));
+    this.state = createInitialState(freshPlayers, this.state.rules);
+    this.startLoadingRound();
   }
 
   private startFinale(p1Id: string, p2Id: string): void {
